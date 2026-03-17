@@ -2,20 +2,14 @@
 
 Мультиагентная система на **LangChain + LangGraph**, которая моделирует `recruitment learning`: новое слово не определяется через словарь, а связывается с уже существующими сенсорными, моторными, аффективными и контекстными схемами.
 
-## Что реализовано
+## Что изменено в текущей версии
 
-Система использует 6 агентов:
-
-1. **Perception Agent** — извлекает сенсорные признаки.
-2. **Action Agent** — извлекает моторные схемы.
-3. **Affect Agent** — извлекает эмоции/оценки/функции.
-4. **Context Agent** — извлекает сценарии употребления.
-5. **Recruitment Agent** — объединяет всё в концептуальную схему (ядро + периферия + связи).
-6. **Simulation Agent** — запускает «ментальную симуляцию» по схеме (сцена, действия, ожидания).
-
-В `LangGraph` первые 4 агента запускаются параллельно, затем их выходы объединяются в `Recruitment Agent`, после чего вызывается `Simulation Agent`.
-
----
+- Вызовы LLM идут **без system-role сообщений** (единый текстовый prompt).
+- CLI печатает результат в терминал **цветными блоками**.
+- Поддерживается удобное использование как Python-модуля через функцию `analyze_word(...)`.
+- Зафиксированы endpoint и модель:
+  - `https://routerai.ru/api/v1`
+  - `xiaomi/mimo-v2-flash`
 
 ## Установка
 
@@ -27,32 +21,19 @@ pip install -e .
 
 ## Настройка API
 
-Проект рассчитан на ChatGPT API через пакет `langchain-openai`.
-
 ```bash
 export OPENAI_API_KEY="your_api_key"
 ```
 
-Можно также использовать `.env` файл:
-
-```env
-OPENAI_API_KEY=your_api_key
-```
-
----
-
-## Запуск
-
-### 1) Реальный запуск через ChatGPT API
+## CLI запуск
 
 ```bash
 python -m recruitment_system \
   --word "мяч" \
-  --context "ребенок увидел предмет, потрогал его и услышал слово" \
-  --model "gpt-4o-mini"
+  --context "ребенок увидел предмет, потрогал его и услышал слово"
 ```
 
-### 2) Локальный демонстрационный режим без API
+Для офлайн-проверки структуры без API:
 
 ```bash
 python -m recruitment_system \
@@ -61,44 +42,24 @@ python -m recruitment_system \
   --mock
 ```
 
-`--mock` полезен для проверки пайплайна, структуры графа и CLI без сетевых вызовов.
+## Использование как Python-модуль
 
----
+```python
+from recruitment_system import analyze_word
 
-## Формат результата
+result = analyze_word(
+    word="мяч",
+    context="ребенок играет на площадке и учит слово",
+    api_key="your_api_key",  # можно не передавать, если задан OPENAI_API_KEY
+)
 
-На выходе печатаются блоки всех 6 агентов:
-
-- Perception Agent
-- Action Agent
-- Affect Agent
-- Context Agent
-- Recruitment Agent
-- Simulation Agent
-
-Именно так можно показать, что система делает не «словарное определение», а **сборку значения через рекрутирование существующих схем**.
-
----
+print(result.to_json())
+print(result.recruitment_output)
+```
 
 ## Архитектура файлов
 
-- `recruitment_system/graph.py` — описание состояния и графа LangGraph, промпты агентов.
-- `recruitment_system/cli.py` — CLI, выбор backend (`OpenAIBackend` или `MockBackend`), запуск графа.
+- `recruitment_system/graph.py` — состояние и граф LangGraph + шаблоны prompt.
+- `recruitment_system/api.py` — backend, объектная обертка и функция `analyze_word`.
+- `recruitment_system/cli.py` — цветной CLI вывод.
 - `recruitment_system/__main__.py` — запуск через `python -m recruitment_system`.
-- `pyproject.toml` — зависимости и параметры пакета.
-
----
-
-## Идея для демонстрации на защите
-
-Запустите два примера:
-
-1. **Конкретное слово**: `мяч`.
-2. **Абстрактное слово**: `справедливость`.
-
-И сравните:
-
-- для конкретного слова сильнее сенсомоторные признаки;
-- для абстрактного — сценарии, социальные оценки и функции.
-
-Это напрямую иллюстрирует recruitment learning из курса.
