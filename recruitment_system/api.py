@@ -24,40 +24,25 @@ class RecruitmentResult:
     def to_json(self, indent: int = 2) -> str:
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=indent)
 
-    @staticmethod
-    def _truncate(text: str, max_chars: int) -> str:
-        if max_chars <= 0 or len(text) <= max_chars:
-            return text
-        return text[: max_chars - 3].rstrip() + "..."
-
-    def to_pretty_text(self, truncate_chars: int = 1000, use_color: bool = True) -> str:
-        reset = "\033[0m" if use_color else ""
-        palette = {
-            "perception": "\033[96m",  # cyan
-            "action": "\033[92m",  # green
-            "affect": "\033[95m",  # magenta
-            "context": "\033[94m",  # blue
-            "recruitment": "\033[93m",  # yellow
-            "simulation": "\033[91m",  # red
-        }
-
-        items = [
-            ("[1] Perception Agent", self._truncate(self.perception_output, truncate_chars), palette["perception"]),
-            ("[2] Action Agent", self._truncate(self.action_output, truncate_chars), palette["action"]),
-            ("[3] Affect Agent", self._truncate(self.affect_output, truncate_chars), palette["affect"]),
-            ("[4] Context Agent", self._truncate(self.context_output, truncate_chars), palette["context"]),
-            ("[5] Recruitment Agent", self._truncate(self.recruitment_output, truncate_chars), palette["recruitment"]),
-            # Финальный агент не обрезается по требованию.
-            ("[6] Simulation Agent", self.simulation_output, palette["simulation"]),
-        ]
-
-        blocks = []
-        for title, body, color in items:
-            c = color if use_color else ""
-            blocks.append(f"{c}{title}{reset}\n{body}")
-
-        # По запросу выводим только блоки агентов, без промптов и служебной шапки.
-        return "\n\n".join(blocks)
+    def to_pretty_text(self) -> str:
+        return (
+            "=" * 72
+            + f"\nRecruitment Learning Report\nСлово: {self.word}\nКонтекст: {self.context}\n"
+            + "=" * 72
+            + "\n\n"
+            + "[1] Perception Agent\n"
+            + f"{self.perception_output}\n\n"
+            + "[2] Action Agent\n"
+            + f"{self.action_output}\n\n"
+            + "[3] Affect Agent\n"
+            + f"{self.affect_output}\n\n"
+            + "[4] Context Agent\n"
+            + f"{self.context_output}\n\n"
+            + "[5] Recruitment Agent\n"
+            + f"{self.recruitment_output}\n\n"
+            + "[6] Simulation Agent\n"
+            + f"{self.simulation_output}"
+        )
 
 
 class OpenAIBackend(AgentBackend):

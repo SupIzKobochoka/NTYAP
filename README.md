@@ -1,6 +1,6 @@
 # Recruitment Learning Simulator (NTYAP)
 
-Мультиагентная система на **LangChain + LangGraph**, которая моделирует `recruitment learning`: новое слово не задаётся через словарную дефиницию, а связывается с уже существующими сенсорными, моторными, аффективными и контекстными схемами.
+Мультиагентная система на **LangChain + LangGraph**, которая моделирует `recruitment learning`: новое слово не определяется через словарь, а связывается с уже существующими сенсорными, моторными, аффективными и контекстными схемами.
 
 ## Что реализовано
 
@@ -10,21 +10,10 @@
 2. **Action Agent** — извлекает моторные схемы.
 3. **Affect Agent** — извлекает эмоции/оценки/функции.
 4. **Context Agent** — извлекает сценарии употребления.
-5. **Recruitment Agent** — собирает единую концептуальную схему.
-6. **Simulation Agent** — строит короткую ментальную симуляцию.
+5. **Recruitment Agent** — объединяет всё в концептуальную схему (ядро + периферия + связи).
+6. **Simulation Agent** — запускает «ментальную симуляцию» по схеме (сцена, действия, ожидания).
 
-В `LangGraph` первые 4 агента запускаются параллельно, после чего их ответы агрегируются и передаются в `Recruitment Agent`, затем в `Simulation Agent`.
-
----
-
-## API и модель по умолчанию
-
-Система настроена под OpenAI-compatible endpoint:
-
-- `openai_api_base='https://routerai.ru/api/v1'`
-- `model='xiaomi/mimo-v2-flash'`
-
-API-ключ берётся из `OPENAI_API_KEY`.
+В `LangGraph` первые 4 агента запускаются параллельно, затем их выходы объединяются в `Recruitment Agent`, после чего вызывается `Simulation Agent`.
 
 ---
 
@@ -36,13 +25,15 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-## Настройка ключа
+## Настройка API
+
+Проект рассчитан на ChatGPT API через пакет `langchain-openai`.
 
 ```bash
 export OPENAI_API_KEY="your_api_key"
 ```
 
-или через `.env`:
+Можно также использовать `.env` файл:
 
 ```env
 OPENAI_API_KEY=your_api_key
@@ -50,67 +41,18 @@ OPENAI_API_KEY=your_api_key
 
 ---
 
-## Использование через Python-функции (рекомендуется)
+## Запуск
 
-```python
-from recruitment_system import RecruitmentLearningSystem
-
-system = RecruitmentLearningSystem(
-    model="xiaomi/mimo-v2-flash",                    # можно не указывать, это default
-    openai_api_base="https://routerai.ru/api/v1",   # можно не указывать, это default
-)
-
-result = system.learn_word(
-    word="мяч",
-    context="ребенок увидел предмет, потрогал его и услышал слово",
-)
-
-print(result.to_pretty_text())  # структурированный человекочитаемый отчёт
-# print(result.to_json())       # структурированный JSON для интеграций
-```
-
-### Mock-режим (без API)
-
-```python
-from recruitment_system import RecruitmentLearningSystem
-
-system = RecruitmentLearningSystem(use_mock=True)
-result = system.learn_word("справедливость", "школьник обсуждает честность оценки")
-print(result.to_pretty_text())
-```
-
----
-
-## CLI
-
-### 1) Реальный запуск через RouterAI/OpenAI-compatible API
-
-```bash
-python -m recruitment_system \
-  --word "мяч" \
-  --context "ребенок увидел предмет, потрогал его и услышал слово"
-```
-
-### 2) С указанием модели/endpoint
-
-```bash
-python -m recruitment_system \
-  --word "справедливость" \
-  --context "школьник обсуждает честность оценки на уроке" \
-  --model "xiaomi/mimo-v2-flash" \
-  --api-base "https://routerai.ru/api/v1"
-```
-
-### 3) JSON-вывод
+### 1) Реальный запуск через ChatGPT API
 
 ```bash
 python -m recruitment_system \
   --word "мяч" \
   --context "ребенок увидел предмет, потрогал его и услышал слово" \
-  --json
+  --model "gpt-4o-mini"
 ```
 
-### 4) Локальный `--mock`
+### 2) Локальный демонстрационный режим без API
 
 ```bash
 python -m recruitment_system \
@@ -119,29 +61,44 @@ python -m recruitment_system \
   --mock
 ```
 
+`--mock` полезен для проверки пайплайна, структуры графа и CLI без сетевых вызовов.
+
 ---
 
-## Формат терминального вывода
+## Формат результата
 
-По умолчанию в терминал выводятся **только ответы агентов** (без системных промптов):
+На выходе печатаются блоки всех 6 агентов:
 
-- у каждого агента свой цвет заголовка;
-- у `Perception/Action/Affect/Context/Recruitment` длинные ответы автоматически обрезаются до `--truncate-chars` и заканчиваются `...`;
-- у финального `Simulation Agent` ответ **не обрезается**.
+- Perception Agent
+- Action Agent
+- Affect Agent
+- Context Agent
+- Recruitment Agent
+- Simulation Agent
 
-Примеры:
-
-```bash
-python -m recruitment_system --word "мяч" --context "ребенок играет" --truncate-chars 800
-python -m recruitment_system --word "мяч" --context "ребенок играет" --no-color
-```
+Именно так можно показать, что система делает не «словарное определение», а **сборку значения через рекрутирование существующих схем**.
 
 ---
 
 ## Архитектура файлов
 
-- `recruitment_system/graph.py` — граф LangGraph и промпты агентов.
-- `recruitment_system/api.py` — Python API (`RecruitmentLearningSystem`, `RecruitmentResult`, backends).
-- `recruitment_system/cli.py` — CLI-обёртка над API.
+- `recruitment_system/graph.py` — описание состояния и графа LangGraph, промпты агентов.
+- `recruitment_system/cli.py` — CLI, выбор backend (`OpenAIBackend` или `MockBackend`), запуск графа.
 - `recruitment_system/__main__.py` — запуск через `python -m recruitment_system`.
-- `pyproject.toml` — зависимости проекта.
+- `pyproject.toml` — зависимости и параметры пакета.
+
+---
+
+## Идея для демонстрации на защите
+
+Запустите два примера:
+
+1. **Конкретное слово**: `мяч`.
+2. **Абстрактное слово**: `справедливость`.
+
+И сравните:
+
+- для конкретного слова сильнее сенсомоторные признаки;
+- для абстрактного — сценарии, социальные оценки и функции.
+
+Это напрямую иллюстрирует recruitment learning из курса.

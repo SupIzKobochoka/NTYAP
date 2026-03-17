@@ -27,11 +27,11 @@ class MockBackend(AgentBackend):
     """Deterministic fallback backend for local demos/tests without API."""
 
     def run(self, system_prompt: str, user_prompt: str) -> str:
-        # В mock-режиме возвращаем только итоговый текст агента без системного промпта.
-        first_line = user_prompt.splitlines()[0] if user_prompt else ""
         return (
-            "[MOCK MODE] "
-            f"Сформирован демонстрационный ответ агента для входа: {first_line}."
+            "[MOCK MODE]\n"
+            f"SYSTEM:\n{system_prompt.strip()}\n\n"
+            f"RESULT:\n{user_prompt.strip()}\n"
+            "Краткий вывод: сформирован приближенный учебный ответ для демонстрации pipeline."
         )
 
 
