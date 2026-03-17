@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import END, START, StateGraph
 
 
 class RecruitmentState(TypedDict, total=False):
@@ -17,22 +17,18 @@ class RecruitmentState(TypedDict, total=False):
 
 
 class AgentBackend:
-    """Backend interface for agent calls."""
+    """Backend interface for agent calls without system-role prompts."""
 
-    def run(self, system_prompt: str, user_prompt: str) -> str:
+    def run(self, prompt: str) -> str:
         raise NotImplementedError
 
 
 class MockBackend(AgentBackend):
     """Deterministic fallback backend for local demos/tests without API."""
 
-    def run(self, system_prompt: str, user_prompt: str) -> str:
-        return (
-            "[MOCK MODE]\n"
-            f"SYSTEM:\n{system_prompt.strip()}\n\n"
-            f"RESULT:\n{user_prompt.strip()}\n"
-            "Краткий вывод: сформирован приближенный учебный ответ для демонстрации pipeline."
-        )
+    def run(self, prompt: str) -> str:
+        del prompt
+        return "[MOCK MODE] Сформирован демонстрационный ответ без сетевого запроса."
 
 
 PERCEPTION_PROMPT = """
@@ -136,45 +132,43 @@ SIMULATION_PROMPT = """
 """
 
 
-def _input_text(state: RecruitmentState) -> str:
-    return f"слово: {state['word']}\nконтекст: {state['context']}"
+def _with_context(prompt: str, state: RecruitmentState) -> str:
+    return f"{prompt.strip()}\n\nВходные данные:\nслово: {state['word']}\nконтекст: {state['context']}"
 
 
 def build_graph(backend: AgentBackend):
     def perception_node(state: RecruitmentState):
-        result = backend.run(PERCEPTION_PROMPT, _input_text(state))
-        return {"perception_output": result}
+        return {"perception_output": backend.run(_with_context(PERCEPTION_PROMPT, state))}
 
     def action_node(state: RecruitmentState):
-        result = backend.run(ACTION_PROMPT, _input_text(state))
-        return {"action_output": result}
+        return {"action_output": backend.run(_with_context(ACTION_PROMPT, state))}
 
     def affect_node(state: RecruitmentState):
-        result = backend.run(AFFECT_PROMPT, _input_text(state))
-        return {"affect_output": result}
+        return {"affect_output": backend.run(_with_context(AFFECT_PROMPT, state))}
 
     def context_node(state: RecruitmentState):
-        result = backend.run(CONTEXT_PROMPT, _input_text(state))
-        return {"context_output": result}
+        return {"context_output": backend.run(_with_context(CONTEXT_PROMPT, state))}
 
     def recruitment_node(state: RecruitmentState):
-        user_prompt = (
+        prompt = (
+            f"{RECRUITMENT_PROMPT.strip()}\n\n"
+            f"Входные данные:\n"
             f"слово: {state['word']}\n"
             f"сенсорные признаки: {state['perception_output']}\n"
             f"действия: {state['action_output']}\n"
             f"эмоции и функции: {state['affect_output']}\n"
             f"сценарии: {state['context_output']}"
         )
-        result = backend.run(RECRUITMENT_PROMPT, user_prompt)
-        return {"recruitment_output": result}
+        return {"recruitment_output": backend.run(prompt)}
 
     def simulation_node(state: RecruitmentState):
-        user_prompt = (
+        prompt = (
+            f"{SIMULATION_PROMPT.strip()}\n\n"
+            f"Входные данные:\n"
             f"слово: {state['word']}\n"
             f"концептуальная схема: {state['recruitment_output']}"
         )
-        result = backend.run(SIMULATION_PROMPT, user_prompt)
-        return {"simulation_output": result}
+        return {"simulation_output": backend.run(prompt)}
 
     graph = StateGraph(RecruitmentState)
     graph.add_node("perception", perception_node)
